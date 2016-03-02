@@ -1,12 +1,23 @@
-preptargetplot<-function(mirnatype="consensus",splittype="none",modeltype="2mix",indf,retdf=FALSE,idvars=1,componentnames=c("Brain","Liver","Placenta"),...){
-indf<-normalizedf(indf,idvars) #apply a calcnormfactors (uqn) normalization
+preptargetplot<-function(mrnatype="consensus",splittype="none",modeltype="2mix",indf,retdf=FALSE,idvars=1,trueproportions=data.frame(mix1=c(.25,.25,.5),mix2=c(.5,.25,.25)),componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"),...){
+  indf<-normalizedf(indf,idvars) #apply a calcnormfactors (uqn) normalization
+  #perhaps if we start splitting this into 5 separate data frames already it'd be better?
+  #example:
+  #C1<-indf[,grep(componentnames[1],colnames(indf))]
+  #C2<-indf[,grep(componentnames[2],colnames(indf))]
+  #C3<-indf[,grep(componentnames[3],colnames(indf))]
+  #C4<-indf[,grep(componentnames[4],colnames(indf))]
+  #C5<-indf[,grep(componentnames[5],colnames(indf))]
+  #M1<-indf[,grep(mixnames[1],colnames(indf))]
+  #M2<-indf[,grep(mixnames[2],colnames(indf))]
+  #Some error checking here to make sure that the grep list is unique (no data is in more than 1 place) and complete (all mixes and components exist)
 
       normalizedf<-function(indf,idvars){
   require(edgeR)
   indf<-as.data.frame(indf) #in case it's actually read in as a data table.
   indf<-indf[rowSums(indf[-idvars])>0,]   #need to get rid of empty rows
-  indf[-idvars]<-round(indf[-idvars])
+  indf[-idvars]<-round(indf[-idvars]) #need to get rid of noninteger values
   indf[is.na(indf)]<-0  #this doesn't support NAs in the idvars.  hope that doesn't become an issue.
+
   normfac<-calcNormFactors(indf[,-idvars],method="upperquartile") #UQN hates miRNA data because there're too many 0s.
   IT<-0
   normdf<-indf[-idvars]
@@ -15,18 +26,15 @@ indf<-normalizedf(indf,idvars) #apply a calcnormfactors (uqn) normalization
   return(indf)
 
 }#applies calcnormfactors normalization
-mifrac<-getmifrac(indf,mirnatype) #calculate the measured fraction ;
-        getmifrac<-function(indf,type=mirnatype){
-  #call appropriate helper functions based on the type of miRNA calculation i choose
+mfrac<-getmfrac(indf,mrnatype) #calculate the measured fraction ; do the
+        getmfrac<-function(indf,type=mrnatype){
+  #call appropriate helper functions based on the type of mRNA calculation i choose
   switch(type,
-         consensus = doubleconsensus(indf),
+         internalconsensus = doubleconsensus(indf,modeltype),
+         externalagreement = lookupmfrac(mixtureid),
          none=c(1,1,1),
-         ercc=selectcomponents(calcmrnafractiongeneral(indf,"ERCC-")), #selectcomponents needs to be created. calcmrnafrac returns
-         #each column's mfrac (needs to )
-         #      labcon=,
-         labround=alllabroundmfrac(indf),
-         #       platform=
-         roundrep = allreplicate(indf)
+         ercc=selectcomponents(calcmrnafractiongeneral(indf,"ERCC-")) #selectcomponents needs to be created. calcmrnafrac returns
+         #each column's mfrac (need to select only the relevant columns from that data & normalize to 1)
   )
 }#call mfraction-calculating helper functions based on the type of measuredRNA
         #calculation i choose
@@ -72,33 +80,37 @@ circleFun<- function(center = c(0,0),diameter = 1, npoints = 100){
     yy <- center[2] + r * sin(tt)
     return(data.frame(x = xx, y = yy))
   } #makes a circle for ggplot.
-magicmodelsolve<-function(){
-
-}
-magicv1modelsolve<-function(){
-
-}
-makelabround<-function(mifrac=c(1,1,1),temp){
+magicmodelsolve<-function(ssx=indf,mifrac,componentnames=c("Mix1","Mix2","Mix3"),mixnames=c("Mix1","Mix2","Mix3"),idvars){
   labround<-NULL
-  for(I in levels(as.factor(temp$Lab))){
-    for(J in levels(as.factor(temp$Round))){
-      for(K in levels(as.factor(temp$Instrument))){
-        ssx<-subset(temp,Lab==I&Round==J&Instrument==K)
-        if(length(ssx[,1])>0){
-          if(length(ssx$variance)==0){
-          labround<-rbind(labround,c(coefficients(lm(data=ssx,Mix1~I(Brain*mifrac[1])+I(Liver*mifrac[2])+I(Placenta*mifrac[3])+0))/sum(coefficients(lm(data=ssx,Mix1~I(Brain*mifrac[1])+I(Liver*mifrac[2])+I(Placenta*mifrac[3])+0))),"Mix1",I,J,K))
-          labround<-rbind(labround,c(coefficients(lm(data=ssx,Mix2~I(Brain*mifrac[1])+I(Liver*mifrac[2])+I(Placenta*mifrac[3])+0))/sum(coefficients(lm(data=ssx,Mix2~I(Brain*mifrac[1])+I(Liver*mifrac[2])+I(Placenta*mifrac[3])+0))),"Mix2",I,J,K))
-          }
-          else{
-            labround<-rbind(labround,c(coefficients(lm(data=ssx,Mix1~I(Brain*mifrac[1])+I(Liver*mifrac[2])+I(Placenta*mifrac[3])+0,weights=1/variance))/sum(coefficients(lm(data=ssx,Mix1~I(Brain*mifrac[1])+I(Liver*mifrac[2])+I(Placenta*mifrac[3])+0,weights=1/variance))),"Mix1",I,J,K))
-            labround<-rbind(labround,c(coefficients(lm(data=ssx,Mix2~I(Brain*mifrac[1])+I(Liver*mifrac[2])+I(Placenta*mifrac[3])+0,weights=1/variance))/sum(coefficients(lm(data=ssx,Mix2~I(Brain*mifrac[1])+I(Liver*mifrac[2])+I(Placenta*mifrac[3])+0,weights=1/variance))),"Mix2",I,J,K)
-          }
-          }
-      }}}
-  labround<-as.data.frame(labround);  colnames(labround)<-c("Brain","Liver","Placenta","Mix","Lab","Round","Plat")
-  for(I in 1:3){labround[,I]<-as.double(as.character(labround[,I]))}
-  m1<-cbind(subset(labround,Mix=="Mix1"),subset(labround,Mix=="Mix2"))[,c(1:3,8:10,12,13,14)]
-  colnames(m1)[4:6]<-c("B2","L2","P2")
+  #awkwardly, this assumes that the data consists only of 1 replicate of each component/mix.
 
-    return(m1)
+  for(idx in 1:length(mixnames)){
+    labround<-rbind(labround,c(
+      #Mm=c(signif(coefficients(lm(data=indf,I(mmix*valuemf[2])~I(lmmix*valuemf[3])+I(lmix*valuemf[1])+0))/sum(coefficients(lm(data=indf,I(mmix*valuemf[2])~I(lmmix*valuemf[3])+I(lmix*valuemf[1])+0))),digits=3)[1],0,signif(coefficients(lm(data=indf,I(mmix*valuemf[1])~I(lmmix*valuemf[3])+I(lmix*valuemf[2])+0))/sum(coefficients(lm(data=indf,I(mmix*valuemf[1])~I(lmmix*valuemf[3])+I(lmix*valuemf[2])+0))),digits=3)[2]),
+
+      coefficients(lm(data=ssx,mixnames[idx]~I(componentnames[1]*mifrac[1])+I(componentnames[2]*mifrac[2])+I(componentnames[3]*mifrac[3])+0))/
+        sum(coefficients(lm(data=ssx,mixnames[idx]~I(componentnames[1]*mifrac[1])+I(componentnames[2]*mifrac[2])+I(componentnames[3]*mifrac[3])+0))),
+      mixnames[idx],idlist))
+  } #I could stand to build this out for different numbers of components and mixes, but i'm not sure how.
+  return(labround)
+}
+
+
+magicv1modelsolve<-function(){
+  #example:  L3=c(signif(coefficients(lm(data=indf,I(MixL3/mfrac["MixL3"]*valuemf[2])~lmmix+I(mmix/valuemf[2]*valuemf[1])+0))/sum(coefficients(lm(data=indf,I(MixL3/mfrac["MixL3"]*valuemf[2])~lmmix+I(mmix/valuemf[2]*valuemf[1])+0))),digits=3),0),
+
+}
+
+
+
+doubleconsensus<-function(dataf,modeltype){
+  fitmodel<-function(indf,modeltype){
+    switch(modeltype,
+           2mix=minmodelsolve(indf,mifrac,componentnames,mixnames,idvars),
+           3mix=magicmodelsolve(indf,mifrac,componentnames,mixnames,idvars))
+    return(data.frame(coef1=coefficients(fit)/sum(coefficients(fit)),coef2=coefficients(fit2)/sum(coefficients(fit2))))
+  }
+  f2opt<-function(par,indata){sum(abs(fitmirmodel(mifrac=c(par,1),indata)[,1]-trueproportions[,1]),abs(fitmirmodel(mifrac=c(par,1),indata)[,2]-trueproportions[,2]))}
+  opted<-optim(par=c(1,1),f2opt,indata=dataf)$par
+  return(c(opted,1)/sum(c(opted,1)))
 }
