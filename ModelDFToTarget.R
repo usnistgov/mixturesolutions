@@ -18,6 +18,13 @@ generalflattarget<-function(dfmatrix,flat=TRUE,componentnames=c("Brain","Liver",
     dfmatrix$value2<-tdfmatrix[tdfmatrix$variable%in%newnames,"value"]
     dfmatrix$dfm<-sqrt(dfmatrix$value^2+dfmatrix$value2^2)
   }
+  circleFun<- function(center = c(0,0),diameter = 1, npoints = 100){
+    r = diameter / 2
+    tt <- seq(0,2*pi,length.out = npoints)
+    xx <- center[1] + r * cos(tt)
+    yy <- center[2] + r * sin(tt)
+    return(data.frame(x = xx, y = yy))
+  } #makes a circle for ggplot.  Tested. Works Well.  Could possibly be extended to make all 3 circles at once rather than 1 at a time, but that gets weird.
   if(returndata==TRUE){return(dfmatrix)}
   g<-ggplot(data=dfmatrix)+
     geom_path(data=data.frame(circleFun(center=c(0,0),diameter=0.03,npoints=25),variable=componentnames[3]),aes(x,y),col="grey")+
