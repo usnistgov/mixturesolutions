@@ -106,8 +106,8 @@ magicv1modelsolve<-function(){
 doubleconsensus<-function(dataf,modeltype){
   fitmodel<-function(indf,modeltype){
     switch(modeltype,
-           2mix=minmodelsolve(indf,mifrac,componentnames,mixnames,idvars),
-           3mix=magicmodelsolve(indf,mifrac,componentnames,mixnames,idvars))
+           twomix=minmodelsolve(indf,mifrac,componentnames,mixnames,idvars),
+           threemix=magicmodelsolve(indf,mifrac,componentnames,mixnames,idvars))
     return(data.frame(coef1=coefficients(fit)/sum(coefficients(fit)),coef2=coefficients(fit2)/sum(coefficients(fit2))))
   }
   f2opt<-function(par,indata){sum(abs(fitmirmodel(mifrac=c(par,1),indata)[,1]-trueproportions[,1]),abs(fitmirmodel(mifrac=c(par,1),indata)[,2]-trueproportions[,2]))}
