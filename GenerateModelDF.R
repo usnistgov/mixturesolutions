@@ -1,7 +1,21 @@
-preptargetplot<-function(mrnatype="consensus",splittype="none",modeltype="2mix",indf,retdf=FALSE,idvars=1,trueproportions=data.frame(mix1=c(.25,.25,.5),mix2=c(.5,.25,.25)),componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"),...){
-  indf<-normalizedf(indf,idvars) #apply a calcnormfactors (uqn) normalization
-  #perhaps if we start splitting this into 5 separate data frames already it'd be better?
-  #example:
+preptargetplot<-function(mrnatype="internalconsensus",splittype="none",modeltype="twomix",indf,retdf=FALSE,idvars=1,trueproportions=data.frame(mix1=c(.25,.25,.5),mix2=c(.5,.25,.25)),componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"),...){
+  normalizedf<-function(indf,idvars){
+    require(edgeR)
+    indf<-as.data.frame(indf) #in case it's actually read in as a data table.
+    indf<-indf[rowSums(indf[-idvars])>0,]   #need to get rid of empty rows for upperquartile
+    indf[-idvars]<-round(indf[-idvars]) #need to get rid of noninteger values for calcnormfactors
+    indf[is.na(indf)]<-0  #this doesn't support NAs in the idvars.  hope that doesn't become an issue.
+    normfac<-calcNormFactors(indf[,-idvars],method="upperquartile")
+    normdf<-indf[-idvars] #subset to only the 'count' columns of df
+    IT<-0 #initialize counter
+    for(I in normfac){IT<-IT+1;normdf[,IT]<-normdf[,IT]*I} #calculate normalized counts by multiplying by normfac
+    indf[-idvars]<-normdf #replace the counts with normalized counts
+    return(indf)
+
+  }
+   indf<-normalizedf(indf,idvars) #apply a calcnormfactors (uqn) normalization
+  ###perhaps if we start splitting this into 5 separate data frames already it'd be better?
+  #example of above:
   #C1<-indf[,grep(componentnames[1],colnames(indf))]
   #C2<-indf[,grep(componentnames[2],colnames(indf))]
   #C3<-indf[,grep(componentnames[3],colnames(indf))]
@@ -9,54 +23,48 @@ preptargetplot<-function(mrnatype="consensus",splittype="none",modeltype="2mix",
   #C5<-indf[,grep(componentnames[5],colnames(indf))]
   #M1<-indf[,grep(mixnames[1],colnames(indf))]
   #M2<-indf[,grep(mixnames[2],colnames(indf))]
-  #Some error checking here to make sure that the grep list is unique (no data is in more than 1 place) and complete (all mixes and components exist)
 
-  normalizedf<-function(indf,idvars){
-  require(edgeR)
-  indf<-as.data.frame(indf) #in case it's actually read in as a data table.
-  indf<-indf[rowSums(indf[-idvars])>0,]   #need to get rid of empty rows for upperquartile
-  indf[-idvars]<-round(indf[-idvars]) #need to get rid of noninteger values for calcnormfactors
-  indf[is.na(indf)]<-0  #this doesn't support NAs in the idvars.  hope that doesn't become an issue.
-  normfac<-calcNormFactors(indf[,-idvars],method="upperquartile")
-  normdf<-indf[-idvars] #subset to only the 'count' columns of df
-  IT<-0 #initialize counter
-  for(I in normfac){IT<-IT+1;normdf[,IT]<-normdf[,IT]*I} #calculate normalized counts by multiplying by normfac
-  indf[-idvars]<-normdf #replace the counts with normalized counts
-  return(indf)
+  ###I would also like to make a pass at turning all of the arguments to this function into a single object so they can get passed down more easily
 
-}#applies calcnormfactors normalization: This looks good right now.
-mfrac<-getmfrac(indf,mrnatype) #calculate the measured fraction ; do the
-        getmfrac<-function(indf,type=mrnatype){
-  #call appropriate helper functions based on the type of mRNA calculation i choose
-  switch(type,
-         internalconsensus = doubleconsensus(indf,modeltype),
-         externalagreement = lookupmfrac(mixtureid),
-         none=c(1,1,1),
-         ercc=selectcomponents(calcmrnafractiongeneral(indf,"ERCC-")) #selectcomponents needs to be created. calcmrnafrac returns
-         #each column's mfrac (need to select only the relevant columns from that data & normalize to 1)
-  )
-}#call mfraction-calculating helper functions based on the type of measuredRNA
+  ###Some error checking here to make sure that the grep list is unique (no data is in more than 1 place) and complete (all mixes and components exist)
+
+ #applies calcnormfactors normalization: This looks good right now.
+  getmfrac<-function(indf,type=mrnatype){
+    #call appropriate helper functions based on the type of mRNA calculation i choose
+    switch(type,
+           internalconsensus = doubleconsensus(indf,modeltype,mixnames,componentnames),
+           externalagreement = lookupmfrac(mixtureid),
+           none=c(1,1,1),
+           ercc=selectcomponents(calcmrnafractiongeneral(indf,"ERCC-")) #selectcomponents needs to be created. calcmrnafrac returns
+           #each column's mfrac (need to select only the relevant columns from that data & normalize to 1)
+    )
+  }#call mfraction-calculating helper functions based on the type of measuredRNA
+  mfrac<-getmfrac(indf,mrnatype) #calculate the measured fraction
+
         #calculation i choose
-splitm1<-splitmultidf(indf,splittype,splitcolumn) #separate out multiple data files (optional)
-          splitmultidf<-function(indf,splittype,splitcolumn,idvars){
-  switch(type,
-         none=return(indf),
-         globalcon = makelabrounda() #i need to split the 'makelabround' into a helper function that splits and a secondary
-         #function that solves the model
-         #the helper should just return a list of the dataframes & a list of the mfracs?
-         #then the model-solving function can 'just' determine if it's a singledf or multidf
-         #and return output accordingly.
-  )
-} #converts a dataframe with multiple count tables into individuals
-          #splitting types need work ; default to 'none' atm.  -- perhaps i need to stop even trying to split from bigdfs
-m1<-getm1(indf,mifrac,mirnatype) #use the model to create a matrix of deviation from target
-getm1<-function(indf,mifrac,type=modeltype){
-  switch(type,
-         twomix=minmodelsolve(indf,mifrac),
-         threemix=magicmodelsolve()
+  splitmultidf<-function(indf,splittype,splitcolumn,idvars){
+    switch(splittype,
+           none=return(indf),
+           globalcon = makelabrounda() #i need to split the 'makelabround' into a helper function that splits and a secondary
+           #function that solves the model
+           #the helper should just return a list of the dataframes & a list of the mfracs?
+           #then the model-solving function can 'just' determine if it's a singledf or multidf
+           #and return output accordingly.
+    )
+  } #converts a dataframe with multiple count tables into individuals
+  #splitting types need work ; default to 'none' atm.  -- perhaps i need to stop even trying to split from bigdfs
+  splitm1<-splitmultidf(indf,splittype,splitcolumn) #separate out multiple data files (optional)
 
-  )
-}#calls a model-solving helper function (eg: minmodelsolve)
+  getm1<-function(indf,mifrac,type=modeltype){
+    switch(type,
+           twomix=minmodelsolve(ssx=indf,mifrac=mifrac,componentnames=componentnames,mixnames=mixnames),
+           threemix=magicmodelsolve()
+
+    )
+  }
+  m1<-getm1(indf,mifrac,modeltype) #use the model to create a matrix of deviation from target
+#calls a model-solving helper function (eg: minmodelsolve)
+return(m1)
 }
 #miscellaneous
 minmodelsolve<-function(ssx=indf,mifrac,componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2")){
@@ -66,17 +74,23 @@ minmodelsolve<-function(ssx=indf,mifrac,componentnames=c("Brain","Liver","Placen
 
 
   for(idx in 1:length(mixnames)){
-    form<-paste0(mixnames[idx],"~","I(",componentnames[1],"*",mifrac[1],")+","I(",componentnames[2],"*",mifrac[2],")+I(",componentnames[3],"*",mifrac[3],")+0")
-    #the above formula is only going to work for 3component mixes, but it could be fixed for 2component
-            modelproportions<-rbind(modelproportions,c(
+
+    #more generalized...
+    form<-paste0(mixnames[idx],"~")
+    for(cindex in (1:(length(componentnames)))){
+       form<-paste0(form,"I(",componentnames[cindex],"*",mifrac[cindex],")+")
+      }
+    form<-paste0(form,0)
+
+    modelproportions<-rbind(modelproportions,c(
       coefficients(lm(data=ssx,form))/
         sum(coefficients(lm(data=ssx,form))),
       mixnames[idx]))
   }
-  rownames(modelproportions)<-c(componentnames,"mix")
+  colnames(modelproportions)<-c(componentnames,"mix")
+  modelproportions<-as.data.frame(modelproportions) #converts proportions to numeric rather than character.
   return(modelproportions)
-} #test cases:  2mix_3compBLM: ok, but isnt returning the values of idvars how i would like.   2mix_2comp: Needs updating of the formula line.   2mix_3comp: untested.
-
+} #test cases:  2mix_3compBLM: ok   2mix_2comp: untested, possible working 2mix_3comp: untested, probably fine
 magicmodelsolve<-function(ssx=indf,mifrac,componentnames=c("Mix1","Mix2","Mix3"),mixnames=c("Mix1","Mix2","Mix3"),idvars){
   labround<-NULL
   #awkwardly, this assumes that the data consists only of 1 replicate of each component/mix.
@@ -113,14 +127,15 @@ calcmrnafracgeneral<-function(dat,spikeID="ERCC-",spikemassfraction=.1,component
 
 
 
-doubleconsensus<-function(dataf,modeltype){
-  fitmodel<-function(indf,modeltype){
-    switch(modeltype,
-           twomix=minmodelsolve(indf,mifrac,componentnames,mixnames,idvars),
-           threemix=magicmodelsolve(indf,mifrac,componentnames,mixnames,idvars))
+doubleconsensus<-function(dataf,modeltype,mixnames,componentnames){
+  fitmodel<-function(indf,mifrac=c(1,1,1),modeltype,mixnames,componentnames){
+    fit<-switch(modeltype,
+           twomix=minmodelsolve(indf,mifrac,componentnames,mixnames),
+           threemix=magicmodelsolve(indf,mifrac,componentnames,mixnames))
     return(data.frame(coef1=coefficients(fit)/sum(coefficients(fit)),coef2=coefficients(fit2)/sum(coefficients(fit2))))
   }
-  f2opt<-function(par,indata){sum(abs(fitmodel(mifrac=c(par,1),indata)[,1]-trueproportions[,1]),abs(fitmodel(mifrac=c(par,1),indata)[,2]-trueproportions[,2]))}
-  opted<-optim(par=c(1,1),f2opt,indata=dataf)$par
+  f2opt<-function(par,indata,modeltype,mixnames,componentnames){sum(abs(fitmodel(mifrac=c(par,1),indata,modeltype=modeltype,mixnames=mixnames,componentnames=componentnames)[,1]-trueproportions[,1]),
+                                                     abs(fitmodel(mifrac=c(par,1),indata,modeltype=modeltype,mixnames=mixnames,componentnames=componentnames)[,2]-trueproportions[,2]))}
+  opted<-optim(par=c(1,1),f2opt,indata=dataf,modeltype=modeltype,mixnames=mixnames,componentnames=componentnames)$par
   return(c(opted,1)/sum(c(opted,1)))
 }#test cases:  2mix_3compBLM (untested), 2mix_3comp (untested), 2mix_2comp (untested, unsummarized), 3mix(build later)
