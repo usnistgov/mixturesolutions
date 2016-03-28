@@ -138,7 +138,7 @@ doubleconsensus<-function(dataf,modeltype,mixnames,componentnames,trueproportion
                                                      abs(fitmodel(mfrac=c(par,1),indata,modeltype=modeltype,mixnames=mixnames,componentnames=componentnames)[2,1:length(trueproportions[,2])]-trueproportions[,2]))}
   opted<-optim(par=c(1,1),f2opt,indata=dataf,modeltype=modeltype,mixnames=mixnames,componentnames=componentnames,trueproportions=trueproportions)$par
   return(c(opted,1)/sum(c(opted,1)))
-}#test cases:  2mix_3compBLM (untested), 2mix_3comp (untested), 2mix_2comp (untested, unsummarized), 3mix(build later: this CLEARLY depends on trueproportions having only 2 columns)
+}#test cases:  2mix_3compBLM (tested), 2mix_3comp (untested), 2mix_2comp (untested, unsummarized), 3mix(build later: this CLEARLY depends on trueproportions having only 2 columns)
 selectcomponents<-function(dataf,componentnames){which(names(dataf)%in%componentnames)}
 
 calcmrnafracgeneral<-function(dat,spikeID="ERCC-",spikemassfraction=.1){
