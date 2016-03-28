@@ -36,7 +36,7 @@ preptargetplot<-function(mrnatype="internalconsensus",splittype="none",prenormal
            internalconsensus = doubleconsensus(indf,modeltype,mixnames,componentnames,trueproportions),
            externalagreement = lookupmfrac(mixtureid),
            none=c(1,1,1),
-           ercc=calcmrnafracgeneral(indf,"ERCC-"),componentnames = componentnames[selectcomponents(calcmrnafracgeneral(indf,"ERCC-"),componentnames = componentnames)] #selectcomponents needs to be created. calcmrnafrac returns
+           ercc=calcmrnafracgeneral(indf[c(1,selectcomponents(indf,componentnames))])#,componentnames = componentnames[selectcomponents(calcmrnafracgeneral(indf,"ERCC-"),componentnames = componentnames)] #selectcomponents needs to be created. calcmrnafrac returns
            #each column's mfrac (need to select only the relevant columns from that data & normalize to 1)
     )
     mfrac<-mfrac/sum(mfrac)
