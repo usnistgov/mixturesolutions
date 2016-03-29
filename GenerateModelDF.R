@@ -1,4 +1,4 @@
-preptargetplot<-function(mrnatype="internalconsensus",splittype="none",prenormalized=TRUE,modeltype="twomix",indf,retdf=FALSE,idvars=1,trueproportions=data.frame(mix1=c(.25,.25,.5),mix2=c(.5,.25,.25)),componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"),...){
+preptargetplot<-function(mrnatype="internalconsensus",splittype="none",prenormalized=TRUE,modeltype="twomix",indf,retdf=FALSE,idvars=1,trueproportions,componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"),...){
   normalizedf<-function(indf,idvars){
     require(edgeR)
     indf<-as.data.frame(indf) #in case it's actually read in as a data table.
@@ -13,37 +13,41 @@ preptargetplot<-function(mrnatype="internalconsensus",splittype="none",prenormal
     return(indf)
 
   }
-
-  if(prenormalized==FALSE){indf<-normalizedf(indf,idvars)} #apply a calcnormfactors (uqn) normalization
-  ###perhaps if we start splitting this into 5 separate data frames already it'd be better?
-  #example of above:
-  #C1<-indf[,grep(componentnames[1],colnames(indf))]
-  #C2<-indf[,grep(componentnames[2],colnames(indf))]
-  #C3<-indf[,grep(componentnames[3],colnames(indf))]
-  #C4<-indf[,grep(componentnames[4],colnames(indf))]
-  #C5<-indf[,grep(componentnames[5],colnames(indf))]
-  #M1<-indf[,grep(mixnames[1],colnames(indf))]
-  #M2<-indf[,grep(mixnames[2],colnames(indf))]
-
-  ###I would also like to make a pass at turning all of the arguments to this function into a single object so they can get passed down more easily
-
-  ###Some error checking here to make sure that the grep list is unique (no data is in more than 1 place) and complete (all mixes and components exist)
+  ###I would also like to make a pass at turning all of the arguments to this function into a single structure so they can get passed into sub-functions more easily
+  preps<-list(modeltype=modeltype,mrnatype=mrnatype,trueproportions=trueproportions,mixnames=mixnames,componentnames=componentnames)
+###trueproportions ...
 
  #applies calcnormfactors normalization: This looks good right now.
-  getmfrac<-function(indf,type=mrnatype){
+  getmfrac<-function(indf,type=preps$mrnatype){
     #call appropriate helper functions based on the type of mRNA calculation i choose
     mfrac<-switch(type,
-           internalconsensus = doubleconsensus(indf,modeltype,mixnames,componentnames,trueproportions),
+           internalconsensus = doubleconsensus(indf,preps),#modeltype,mixnames,componentnames,trueproportions),
            externalagreement = lookupmfrac(mixtureid),
            none=c(1,1,1),
-           ercc=calcmrnafracgeneral(indf[c(1,selectcomponents(indf,componentnames))])#,componentnames = componentnames[selectcomponents(calcmrnafracgeneral(indf,"ERCC-"),componentnames = componentnames)] #selectcomponents needs to be created. calcmrnafrac returns
-           #each column's mfrac (need to select only the relevant columns from that data & normalize to 1)
+           ercc=calcmrnafracgeneral(indf[c(1,selectcomponents(indf,preps))])#
     )
     mfrac<-mfrac/sum(mfrac)
     return(mfrac)
   }#call mfraction-calculating helper functions based on the type of measuredRNA
-  mfrac<-getmfrac(indf,mrnatype) #calculate the measured fraction
+  if(prenormalized==FALSE){indf<-normalizedf(indf,idvars)} #apply a calcnormfactors (uqn) normalization
+  ###perhaps if we start splitting this into 5 separate data frames already it'd be better?
+  #example of above:
+  collapsereps<-function(indf,preps){
+    C1<-indf[,grep(componentnames[1],colnames(indf))]; C1l<-NULL;for(I in 1:ncol(C1)){C1l<-rbind(C1l,data.frame(data=C1[,I],replicate=I))}
+    if(length(componentnames)>1){C2<-indf[,grep(componentnames[2],colnames(indf))];C2l<-NULL;for(I in 1:ncol(C2)){C2l<-rbind(C2l,data.frame(data=C2[,I],replicate=I))}}
+    if(length(componentnames)>2){C3<-indf[,grep(componentnames[3],colnames(indf))] ;C3l<-NULL;for(I in 1:ncol(C3)){C3l<-rbind(C3l,data.frame(data=C3[,I],replicate=I))}}
+    if(length(componentnames)>3){C4<-indf[,grep(componentnames[4],colnames(indf))] ;C4l<-NULL;for(I in 1:ncol(C4)){C4l<-rbind(C4l,data.frame(data=C4[,I],replicate=I))}}
+    if(length(componentnames)>4){C5<-indf[,grep(componentnames[5],colnames(indf))] ;C5l<-NULL;for(I in 1:ncol(C5)){C5l<-rbind(C5l,data.frame(data=C5[,I],replicate=I))}}
+    M1<-indf[,grep(mixnames[1],colnames(indf))]
+    if(length(mixnames)>1){M2<-indf[,grep(mixnames[2],colnames(indf))];M2l<-NULL;for(I in 1:ncol(M2)){M2l<-rbind(M2l,data.frame(data=M2[,I],replicate=I))}}
+    if(length(mixnames)>2){M3<-indf[,grep(mixnames[3],colnames(indf))];M3l<-NULL;for(I in 1:ncol(M3)){M3l<-rbind(M3l,data.frame(data=M3[,I],replicate=I))}}
+    if(length(mixnames)>3){M4<-indf[,grep(mixnames[4],colnames(indf))];M4l<-NULL;for(I in 1:ncol(M4)){M4l<-rbind(M4l,data.frame(data=M4[,I],replicate=I))}}
 
+    ###Some error checking here to make sure that the grep list is unique (no data is in more than 1 place) and complete (all mixes and components exist)
+  }
+
+  mfrac<-getmfrac(indf,preps$mrnatype) #calculate the measured fraction
+  preps<-c(preps,list(mfrac=mfrac))#adds the mfrac to the data structure
         #calculation i choose
   splitmultidf<-function(indf,splittype,splitcolumn,idvars){
     switch(splittype,
@@ -58,52 +62,52 @@ preptargetplot<-function(mrnatype="internalconsensus",splittype="none",prenormal
   #splitting types need work ; default to 'none' atm.  -- perhaps i need to stop even trying to split from bigdfs
   splitm1<-splitmultidf(indf,splittype,splitcolumn) #separate out multiple data files (optional)
 
-  getm1<-function(indf,mfrac,type=modeltype){
-    switch(type,
-           twomix=minmodelsolve(ssx=indf,mfrac=mfrac,componentnames=componentnames,mixnames=mixnames),
+  getm1<-function(indf,preps){
+    switch(preps$modeltype,
+           twomix=minmodelsolve(ssx=indf,preps=preps),
            threemix=magicmodelsolve()
 
     )
   }
-  m1<-getm1(indf,mfrac,modeltype) #use the model to create a matrix of deviation from target
+  m1<-getm1(indf,preps=preps) #use the model to create a matrix of deviation from target
 #calls a model-solving helper function (eg: minmodelsolve)
 return(m1)
 }
 #miscellaneous
-minmodelsolve<-function(ssx=indf,mfrac,componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2")){
+minmodelsolve<-function(ssx=indf,preps){
   modelproportions<-NULL
   #somewhat awkwardly, this assumes that the data consists only of 1 replicate of each component/mix.
   #i suppose i could do some pre-summarizing inside here?  Better: use a 'summarize' subroutine,elsewhere (in normalization?) to do that.
 
-  for(idx in 1:length(mixnames)){
+  for(idx in 1:length(preps$mixnames)){
     #more generalized...
-    form<-paste0(mixnames[idx],"~")
-    for(cindex in (1:(length(componentnames)))){
-       form<-paste0(form,"I(",componentnames[cindex],"*",mfrac[cindex],")+")
+    form<-paste0(preps$mixnames[idx],"~")
+    for(cindex in (1:(length(preps$componentnames)))){
+       form<-paste0(form,"I(",preps$componentnames[cindex],"*",preps$mfrac[cindex],")+")
       }
     form<-paste0(form,0)
 
     modelproportions<-rbind(modelproportions,c(
       coefficients(lm(data=ssx,form))/
         sum(coefficients(lm(data=ssx,form))),
-      mixnames[idx]))
+      preps$mixnames[idx]))
   }
-  colnames(modelproportions)<-c(componentnames,"mix")
+  colnames(modelproportions)<-c(preps$componentnames,"mix")
   modelproportions<-as.data.frame(modelproportions) #converts proportions to numeric rather than character.
-  for(I in 1:length(componentnames)){modelproportions[,I]<-as.numeric(as.character(modelproportions[,I]))}
+  for(I in 1:length(preps$componentnames)){modelproportions[,I]<-as.numeric(as.character(modelproportions[,I]))}
   return(modelproportions)
 } #test cases:  2mix_3compBLM: ok   2mix_2comp: untested, possible working 2mix_3comp: untested, probably fine
-magicmodelsolve<-function(ssx=indf,mfrac,componentnames=c("Mix1","Mix2","Mix3"),mixnames=c("Mix1","Mix2","Mix3"),idvars){
+magicmodelsolve<-function(ssx=indf,preps,idvars){
   labround<-NULL
   #awkwardly, this assumes that the data consists only of 1 replicate of each component/mix.
 
-  for(idx in 1:length(mixnames)){
+  for(idx in 1:length(preps$mixnames)){
     labround<-rbind(labround,c(
       #Mm=c(signif(coefficients(lm(data=indf,I(mmix*valuemf[2])~I(lmmix*valuemf[3])+I(lmix*valuemf[1])+0))/sum(coefficients(lm(data=indf,I(mmix*valuemf[2])~I(lmmix*valuemf[3])+I(lmix*valuemf[1])+0))),digits=3)[1],0,signif(coefficients(lm(data=indf,I(mmix*valuemf[1])~I(lmmix*valuemf[3])+I(lmix*valuemf[2])+0))/sum(coefficients(lm(data=indf,I(mmix*valuemf[1])~I(lmmix*valuemf[3])+I(lmix*valuemf[2])+0))),digits=3)[2]),
 
-      coefficients(lm(data=ssx,mixnames[idx]~I(componentnames[1]*mfrac[1])+I(componentnames[2]*mfrac[2])+I(componentnames[3]*mfrac[3])+0))/
-        sum(coefficients(lm(data=ssx,mixnames[idx]~I(componentnames[1]*mfrac[1])+I(componentnames[2]*mfrac[2])+I(componentnames[3]*mfrac[3])+0))),
-      mixnames[idx],idlist))
+      coefficients(lm(data=ssx,preps$mixnames[idx]~I(preps$componentnames[1]*preps$mfrac[1])+I(preps$componentnames[2]*preps$mfrac[2])+I(preps$componentnames[3]*preps$mfrac[3])+0))/
+        sum(coefficients(lm(data=ssx,preps$mixnames[idx]~I(preps$componentnames[1]*preps$mfrac[1])+I(preps$componentnames[2]*preps$mfrac[2])+I(preps$componentnames[3]*preps$mfrac[3])+0))),
+      preps$mixnames[idx],idlist))
   } #I could stand to build this out for different numbers of components and mixes, but i'm not sure how.
   return(labround)
 }#buildlater
@@ -111,7 +115,7 @@ magicv1modelsolve<-function(){
   #example:  L3=c(signif(coefficients(lm(data=indf,I(MixL3/mfrac["MixL3"]*valuemf[2])~lmmix+I(mmix/valuemf[2]*valuemf[1])+0))/sum(coefficients(lm(data=indf,I(MixL3/mfrac["MixL3"]*valuemf[2])~lmmix+I(mmix/valuemf[2]*valuemf[1])+0))),digits=3),0),
 
 } #buildlater
-calcmrnafracgeneral<-function(dat,spikeID="ERCC-",spikemassfraction=.1,componentnames){
+calcmrnafracgeneral<-function(dat,spikeID="ERCC-",spikemassfraction=.1,preps){
   countcolumns<-which(unname(unlist(lapply(dat,class))=="numeric"))  #0) Identify which columns are counts and which are 'annotation':
   annotcolumn<-which(unname(unlist(lapply(dat,class))!="numeric"))
   #1) Identify which counts are Spike-In and which are not
@@ -123,23 +127,24 @@ calcmrnafracgeneral<-function(dat,spikeID="ERCC-",spikemassfraction=.1,component
   ercc.targ<-spikemassfraction  #defines the "targeted" mass fraction for spikes : Either a vector with length = #columns,or a scalar
   mRNA.frac<-ercc.targ*count[2,]/count[1,]  #calculates an mRNA fraction based on those available data
   #return(mRNA.frac)  #this part doesn't normalize to one, but that's not exactly complicated.
-  return(mRNA.frac[names(mRNA.frac)%in%componentnames]/sum(mRNA.frac[names(mRNA.frac)%in%componentnames])) #working on BLM.
+  return(mRNA.frac[names(mRNA.frac)%in%preps$componentnames]/sum(mRNA.frac[names(mRNA.frac)%in%preps$componentnames])) #working on BLM.
 }#test cases:  2mix_3compBLM (working), 2mix_3comp (NA,nospikes), 2mix_2comp (untested, unsummarized), 3mix(build later)
 
 
-doubleconsensus<-function(dataf,modeltype,mixnames,componentnames,trueproportions){
-  fitmodel<-function(indf,mfrac=c(1,1,1),modeltype,mixnames,componentnames){
-    fit<-switch(modeltype,
-           twomix=minmodelsolve(indf,mfrac,componentnames,mixnames),
-           threemix=magicmodelsolve(indf,mfrac,componentnames,mixnames))
+doubleconsensus<-function(dataf,preps){
+  fitmodel<-function(indf,preps){
+    fit<-switch(preps$modeltype,
+           twomix=minmodelsolve(indf,preps),
+           threemix=magicmodelsolve(indf,preps))
     return(fit)
   }
-  f2opt<-function(par,indata,modeltype,mixnames,componentnames,trueproportions){sum(abs(fitmodel(mfrac=c(par,1),indata,modeltype=modeltype,mixnames=mixnames,componentnames=componentnames)[1,1:length(trueproportions[,1])]-trueproportions[,1]),
-                                                     abs(fitmodel(mfrac=c(par,1),indata,modeltype=modeltype,mixnames=mixnames,componentnames=componentnames)[2,1:length(trueproportions[,2])]-trueproportions[,2]))}
-  opted<-optim(par=c(1,1),f2opt,indata=dataf,modeltype=modeltype,mixnames=mixnames,componentnames=componentnames,trueproportions=trueproportions)$par
+  f2opt<-function(par,indata,preps){prepsn<-c(preps,list(mfrac=c(par,1)));(sum(abs(fitmodel(indata,preps=prepsn)[1,1:length(preps$trueproportions[,1])]-preps$trueproportions[,1]),
+                                                     abs(fitmodel(indata,preps=prepsn)[2,1:length(preps$trueproportions[,2])]-preps$trueproportions[,2])))}
+  opted<-optim(par=c(1,1),f2opt,indata=dataf,preps=preps)$par
   return(c(opted,1)/sum(c(opted,1)))
 }#test cases:  2mix_3compBLM (tested), 2mix_3comp (untested), 2mix_2comp (untested, unsummarized), 3mix(build later: this CLEARLY depends on trueproportions having only 2 columns)
-selectcomponents<-function(dataf,componentnames){which(names(dataf)%in%componentnames)}
+###This could also use some speed optimizations, it runs slow for some reason. (rprof)
+selectcomponents<-function(dataf,preps){which(names(dataf)%in%preps$componentnames)}
 
 calcmrnafracgeneral<-function(dat,spikeID="ERCC-",spikemassfraction=.1){
   #1) Identify which counts are Spike-In and which are not
@@ -158,12 +163,17 @@ calcmrnafracgeneral<-function(dat,spikeID="ERCC-",spikemassfraction=.1){
   return(mRNA.frac)
 }#2mix_3comp_blm tested.
 
-
+unittests<-function(){
 #global testing:
 #Test #1:  Does it work with BLMmixdata.
 Blmdata=read.csv("Example_2mix_3compBLM.txt")
-#preptargetplot(mrnatype = "ercc",prenormalized = TRUE,modeltype = "twomix",indf = Blmdata,trueproportions = data.frame(mix1=c(.5,.25,.25),mix2=c(.25,.5,.25)),componentnames=c("bep","lep","mep"),mixnames=c("a1","a2"))
+preptargetplot(mrnatype = "ercc",prenormalized = TRUE,modeltype = "twomix",indf = Blmdata,trueproportions = data.frame(mix1=c(.25,.25,.5),mix2=c(.25,.5,.25)),componentnames=c("bep","lep","mep"),mixnames=c("a1","a2"))
+#expected output:  26/26/48 and 29/52/19 BLM for a1 and a2, respectively.
+preptargetplot(mrnatype = "internalconsensus",prenormalized = TRUE,modeltype = "twomix",indf = Blmdata,trueproportions = data.frame(mix1=c(.25,.25,.5),mix2=c(.25,.5,.25)),componentnames=c("bep","lep","mep"),mixnames=c("a1","a2"))
+#expected output:  25/25/50 and 28/52/20 BLM for a1 and a2, respectively.
+
 #Test #2  Does it work with miRNAmixData:
 mirnadata=read.csv("Example_2mix_3comp.txt",sep="\t")
 preptargetplot(indf=mirnadata,mrnatype="internalconsensus",prenormalized=FALSE,modeltype="twomix",componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"))
 ##Issue:  Dealing with _replicates is not working
+}
