@@ -2,9 +2,9 @@ preptargetplot<-function(mrnatype="internalconsensus",splittype="none",prenormal
   normalizedf<-function(indf,idvars){
     require(edgeR)
     indf<-as.data.frame(indf) #in case it's actually read in as a data table.
+    indf[is.na(indf)]<-0  #this doesn't support NAs in the idvars.  hope that doesn't become an issue.
     indf<-indf[rowSums(indf[-idvars])>0,]   #need to get rid of empty rows for upperquartile
     indf[-idvars]<-round(indf[-idvars]) #need to get rid of noninteger values for calcnormfactors
-    indf[is.na(indf)]<-0  #this doesn't support NAs in the idvars.  hope that doesn't become an issue.
     normfac<-calcNormFactors(indf[,-idvars],method="upperquartile")
     normdf<-indf[-idvars] #subset to only the 'count' columns of df
     IT<-0 #initialize counter
@@ -157,3 +157,13 @@ calcmrnafracgeneral<-function(dat,spikeID="ERCC-",spikemassfraction=.1){
   #this part doesn't normalize to one, but that's not exactly complicated.
   return(mRNA.frac)
 }#2mix_3comp_blm tested.
+
+
+#global testing:
+#Test #1:  Does it work with BLMmixdata.
+Blmdata=read.csv("Example_2mix_3compBLM.txt")
+#preptargetplot(mrnatype = "ercc",prenormalized = TRUE,modeltype = "twomix",indf = Blmdata,trueproportions = data.frame(mix1=c(.5,.25,.25),mix2=c(.25,.5,.25)),componentnames=c("bep","lep","mep"),mixnames=c("a1","a2"))
+#Test #2  Does it work with miRNAmixData:
+mirnadata=read.csv("Example_2mix_3comp.txt",sep="\t")
+preptargetplot(indf=mirnadata,mrnatype="internalconsensus",prenormalized=FALSE,modeltype="twomix",componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"))
+##Issue:  Dealing with _replicates is not working
