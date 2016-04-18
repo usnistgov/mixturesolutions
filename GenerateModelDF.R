@@ -1,4 +1,4 @@
-preptargetplot<-function(mrnatype="internalconsensus",splittype="none",prenormalized=TRUE,modeltype="twomix",indf,retdf=FALSE,idvars=1,trueproportions,componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"),annot=c("Replicate"),...){
+preptargetplot<-function(mrnatype="internalconsensus",splittype="none",prenormalized=TRUE,modeltype="twomix",indf,retdf=FALSE,idnames="id",idvars=1,trueproportions,componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"),annot=c("Replicate"),...){
   normalizedf<-function(indf,idvars){
     require(edgeR)
     indf<-as.data.frame(indf) #in case it's actually read in as a data table.
@@ -14,7 +14,7 @@ preptargetplot<-function(mrnatype="internalconsensus",splittype="none",prenormal
 
   }
   ###I would also like to make a pass at turning all of the arguments to this function into a single structure so they can get passed into sub-functions more easily
-  preps<-list(modeltype=modeltype,mrnatype=mrnatype,trueproportions=trueproportions,mixnames=mixnames,componentnames=componentnames)
+  preps<-list(modeltype=modeltype,mrnatype=mrnatype,trueproportions=trueproportions,mixnames=mixnames,componentnames=componentnames,idvars=idvars,idnames=idnames)
 ###trueproportions ...
 
  #applies calcnormfactors normalization: This looks good right now.
@@ -44,25 +44,24 @@ preptargetplot<-function(mrnatype="internalconsensus",splittype="none",prenormal
       reslist<-c(reslist,grep(mixnames[I],colnames(indf)))}
     if(length(unique(reslist))!=length(reslist)){warning("One or more entities appear to have non-unique names.  Can you make sure all of your components and mixes have unique names?")}
           ###Some error checking here to make sure that the grep list is unique (no data is in more than 1 place) and complete (all mixes and components exist)
-
-    C1<-indf[,grep(componentnames[1],colnames(indf))]; C1l<-NULL;for(I in 1:ncol(C1)){C1l<-rbind(C1l,data.frame(data=C1[,I],annot=I))};colnames(C1l)<-c("data",annot);C1l$Source<-componentnames[1]
-    if(length(componentnames)>1){C2<-indf[,grep(componentnames[2],colnames(indf))];C2l<-NULL;for(I in 1:ncol(C2)){C2l<-rbind(C2l,data.frame(data=C2[,I],annot=I))};colnames(C2l)<-c("data",annot);C2l$Source<-componentnames[2]}
-    if(length(componentnames)>2){C3<-indf[,grep(componentnames[3],colnames(indf))] ;C3l<-NULL;for(I in 1:ncol(C3)){C3l<-rbind(C3l,data.frame(data=C3[,I],annot=I))};colnames(C3l)<-c("data",annot);C3l$Source<-componentnames[3]}
+    C1<-indf[,c(grep(componentnames[1],colnames(indf)))]; C1l<-NULL;for(I in 1:ncol(C1)){C1l<-rbind(C1l,data.frame(id=indf[,idvars],data=C1[,I],annot=I))};colnames(C1l)<-c(idnames,"data",annot);C1l$Source<-componentnames[1]
+    if(length(componentnames)>1){C2<-indf[,c(grep(componentnames[2],colnames(indf)))];C2l<-NULL;for(I in 1:ncol(C2)){C2l<-rbind(C2l,data.frame(id=indf[,idvars],data=C2[,I],annot=I))};colnames(C2l)<-c(idnames,"data",annot);C2l$Source<-componentnames[2]}
+    if(length(componentnames)>2){C3<-indf[,c(grep(componentnames[3],colnames(indf)))] ;C3l<-NULL;for(I in 1:ncol(C3)){C3l<-rbind(C3l,data.frame(id=indf[,idvars],data=C3[,I],annot=I))};colnames(C3l)<-c(idnames,"data",annot);C3l$Source<-componentnames[3]}
     if(length(componentnames)>3){warning("You seem to have input more than 3 component names.  This behavior is not currently supported.")}
-    if(length(componentnames)>3){C4<-indf[,grep(componentnames[4],colnames(indf))] ;C4l<-NULL;for(I in 1:ncol(C4)){C4l<-rbind(C4l,data.frame(data=C4[,I],annot=I))};colnames(C4l)<-c("data",annot);C4l$Source<-componentnames[4]}
-    if(length(componentnames)>4){C5<-indf[,grep(componentnames[5],colnames(indf))] ;C5l<-NULL;for(I in 1:ncol(C5)){C5l<-rbind(C5l,data.frame(data=C5[,I],annot=I))};colnames(C5l)<-c("data",annot);C5l$Source<-componentnames[5]}
-          M1<-indf[,grep(mixnames[1],colnames(indf))];M1l<-NULL;for(I in 1:ncol(M1)){M1l<-rbind(M1l,data.frame(data=M1[,I],annot=I))};colnames(M1l)<-c("data",annot);M1l$Source<-mixnames[1]
-    if(length(mixnames)>1){M2<-indf[,grep(mixnames[2],colnames(indf))];M2l<-NULL;for(I in 1:ncol(M2)){M2l<-rbind(M2l,data.frame(data=M2[,I],annot=I))};colnames(M2l)<-c("data",annot);M2l$Source<-mixnames[2]}
+    if(length(componentnames)>3){C4<-indf[,c(grep(componentnames[4],colnames(indf)))] ;C4l<-NULL;for(I in 1:ncol(C4)){C4l<-rbind(C4l,data.frame(id=indf[,idvars],data=C4[,I],annot=I))};colnames(C4l)<-c(idnames,"data",annot);C4l$Source<-componentnames[4]}
+    if(length(componentnames)>4){C5<-indf[,c(grep(componentnames[5],colnames(indf)))] ;C5l<-NULL;for(I in 1:ncol(C5)){C5l<-rbind(C5l,data.frame(id=indf[,idvars],data=C5[,I],annot=I))};colnames(C5l)<-c(idnames,"data",annot);C5l$Source<-componentnames[5]}
+          M1<-indf[,c(grep(mixnames[1],colnames(indf)))];M1l<-NULL;for(I in 1:ncol(M1)){M1l<-rbind(M1l,data.frame(id=indf[,idvars],data=M1[,I],annot=I))};colnames(M1l)<-c(idnames,"data",annot);M1l$Source<-mixnames[1]
+    if(length(mixnames)>1){M2<-indf[,c(grep(mixnames[2],colnames(indf)))];M2l<-NULL;for(I in 1:ncol(M2)){M2l<-rbind(M2l,data.frame(id=indf[,idvars],data=M2[,I],annot=I))};colnames(M2l)<-c(idnames,"data",annot);M2l$Source<-mixnames[2]}
           if(length(mixnames)>2){warning("You have input more than 2 mix names.  This behavior is not currently supported")}
 
-    if(length(mixnames)>2){M3<-indf[,grep(mixnames[3],colnames(indf))];M3l<-NULL;for(I in 1:ncol(M3)){M3l<-rbind(M3l,data.frame(data=M3[,I],annot=I))};colnames(M3l)<-c("data",annot);M3l$Source<-mixnames[3]}
-    if(length(mixnames)>3){M4<-indf[,grep(mixnames[4],colnames(indf))];M4l<-NULL;for(I in 1:ncol(M4)){M4l<-rbind(M4l,data.frame(data=M4[,I],annot=I))};colnames(M4l)<-c("data",annot);M4l$Source<-mixnames[4]}
+    if(length(mixnames)>2){M3<-indf[,c(grep(mixnames[3],colnames(indf)))];M3l<-NULL;for(I in 1:ncol(M3)){M3l<-rbind(M3l,data.frame(id=indf[,idvars],data=M3[,I],annot=I))};colnames(M3l)<-c(idnames,"data",annot);M3l$Source<-mixnames[3]}
+    if(length(mixnames)>3){M4<-indf[,c(grep(mixnames[4],colnames(indf)))];M4l<-NULL;for(I in 1:ncol(M4)){M4l<-rbind(M4l,data.frame(id=indf[,idvars],data=M4[,I],annot=I))};colnames(M4l)<-c(idnames,"data",annot);M4l$Source<-mixnames[4]}
 
-
+###I need to do something to get the ID vector put as part of the dataset ;
 #add everything that *did* get created in the set of C1:C5&M1:M4 into the output list.
-          #apparently the environment is changing pretty quickly around here so i need to define things before searching...
+          #apparently the environment is changing pretty quickly around here so i need to define things before searching...If any additional changes occur below, they need to be pre-defined here!
           listout<-NULL;outdf<-NULL;IT<-0;allnames<-c(componentnames,mixnames);J<-0;require(reshape2);detach(preps)
-          browser()
+
           listout<-c(grep("^C[0-9]l$",ls()),grep("^M[0-9]l$",ls())) #find all of the objects we created fitting the pattern.
       #This pattern should be sufficiently rigid that no false positives show, but searching only within environmentwould help.  If i knew how to do that.
           if(length(listout)!=length(allnames)){error("Something went horribly wrong in replicate collapsing.")}
@@ -70,7 +69,8 @@ preptargetplot<-function(mrnatype="internalconsensus",splittype="none",prenormal
               IT<-IT+1
               outdf<-rbind(outdf,get(ls()[J]))} #paste them all together into an object.The type of it is the tricky part...
       #I chose to make it a (molten) data frame.  It still needs to be dcast for lm, though, and probably other things.
-  return(outdf)
+                        outdf<-dcast(outdf,get(idnames)~Source,fun.aggregate=mean,na.rm=TRUE,value.var = 'data') #This is going to have to work for now.  I'm sure it has issues.
+                         return(outdf)
         }
 
 
@@ -207,5 +207,5 @@ preptargetplot(mrnatype = "internalconsensus",prenormalized = TRUE,modeltype = "
 #Test #2  Does it work with miRNAmixData:
 mirnadata=read.csv("Example_2mix_3comp.txt",sep="\t")
 preptargetplot(indf=mirnadata,mrnatype="internalconsensus",prenormalized=FALSE,modeltype="twomix",componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"),trueproportions = data.frame(mix1=c(.25,.25,.5),mix2=c(.5,.25,.25)))
-##Issue:  Dealing with _replicates is not working
+##expected output:  25/25/50 and 50/25/25 for Mix1 and Mix2(+/-.006), respectively.
 }
