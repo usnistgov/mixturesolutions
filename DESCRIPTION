@@ -1,0 +1,15 @@
+Package: mixturesolutions
+Version: 0.0.1
+Date: 2016-04-28
+Title: Analysis of Mixture count data
+Authors@R: c(person("Jerod", "Parsons", role = c("aut", "cre"),
+	   		        email = "jerod.parsons@nist.gov"))
+Author: Jerod Parsons [aut, cre],
+Maintainer: Jerod Parsons <jeparson@github.com>
+Depends: R (>= 3.1.0),
+Suggests: MASS
+Description: Modeling and analysis of the proportions of mixture components
+  in a mixture design, based on the modeling put forth in http://dx.doi.org/10.1186%2Fs12864-015-1912-7 
+License: GPL (>= 2)
+URL: https://www.github.com/usnistgov/mixturesolutions, 
+BugReports: https://github.com/usnistgov/mixturesolutions
