@@ -1,12 +1,35 @@
-preptargetplot <-
-function(mrnatype="internalconsensus",splittype="none",prenormalized=TRUE,modeltype="twomix",indf,retdf=FALSE,idnames="id",idvars=1,trueproportions,componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"),annot=c("Replicate"),...){
+#' Calculate the fraction of mixture components in a mixture dataset.
+#'
+#' \code{lmmixture} solves a linear model based on the components
+#' and proportions listed.  Returns a modified object with model results and
+#' predicted count values.
+#'
+#'
+#' @param mrnatype Internalconsensus,externalagreement,none,or ercc;
+#' How to calculate the measured fraction in a sample.
+#' @param splittype 'none' - not currently implemented:
+#' How to split the data rows based on columns in idvars.
+#' @param prenormalized TRUE/FALSE - if data is already normalized.
+#' @param modeltype "twomix","threemix":
+#' How many different mixtures are present in your dataset.
+#' @param indf Input dataframe:  counts and idvariables.
+#' @param idvars List of columns (or names?) that are not data, but identifiers
+#' of gene names(1st) or splitting features (not 1st, not implemented).
+#' @param trueproportions Data frame consisting of the true mixture
+#' proportions of each mix, in order.
+#' @param componentnames List of column names of indf for each component.
+#' @param mixnames List of column names of indf corresponding to each mix.
+#' @param annot How to refer to the various copies of each component/mix
+#' after they are split/merged.
+#' @param ... Anything else.
+#' @export lmmixture
+lmmixture <-function(mrnatype="internalconsensus",splittype="none",prenormalized=TRUE,modeltype="twomix",indf,retdf=FALSE,idnames="id",idvars=1,trueproportions,componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"),annot=c("Replicate"),...){
   normalizedf<-function(indf,idvars){
-    require(edgeR)
     indf<-as.data.frame(indf) #in case it's actually read in as a data table.
     indf[is.na(indf)]<-0  #this doesn't support NAs in the idvars.  hope that doesn't become an issue.
     indf<-indf[rowSums(indf[-idvars])>0,]   #need to get rid of empty rows for upperquartile
     indf[-idvars]<-round(indf[-idvars]) #need to get rid of noninteger values for calcnormfactors
-    normfac<-calcNormFactors(indf[,-idvars],method="upperquartile")
+    normfac<-edgeR::calcNormFactors(indf[,-idvars],method="upperquartile")
     normdf<-indf[-idvars] #subset to only the 'count' columns of df
     IT<-0 #initialize counter
     for(I in normfac){IT<-IT+1;normdf[,IT]<-normdf[,IT]*I} #calculate normalized counts by multiplying by normfac
@@ -61,7 +84,7 @@ function(mrnatype="internalconsensus",splittype="none",prenormalized=TRUE,modelt
 ###I need to do something to get the ID vector put as part of the dataset ;
 #add everything that *did* get created in the set of C1:C5&M1:M4 into the output list.
           #apparently the environment is changing pretty quickly around here so i need to define things before searching...If any additional changes occur below, they need to be pre-defined here!
-          listout<-NULL;outdf<-NULL;IT<-0;allnames<-c(componentnames,mixnames);J<-0;require(reshape2);detach(preps)
+          listout<-NULL;outdf<-NULL;IT<-0;allnames<-c(componentnames,mixnames);J<-0;detach(preps)
 
           listout<-c(grep("^C[0-9]l$",ls()),grep("^M[0-9]l$",ls())) #find all of the objects we created fitting the pattern.
       #This pattern should be sufficiently rigid that no false positives show, but searching only within environmentwould help.  If i knew how to do that.
@@ -70,7 +93,7 @@ function(mrnatype="internalconsensus",splittype="none",prenormalized=TRUE,modelt
               IT<-IT+1
               outdf<-rbind(outdf,get(ls()[J]))} #paste them all together into an object.The type of it is the tricky part...
       #I chose to make it a (molten) data frame.  It still needs to be dcast for lm, though, and probably other things.
-                        outdf<-dcast(outdf,get(idnames)~Source,fun.aggregate=mean,na.rm=TRUE,value.var = 'data') #This is going to have to work for now.  I'm sure it has issues.
+                        outdf<-reshape2::dcast(outdf,get(idnames)~Source,fun.aggregate=mean,na.rm=TRUE,value.var = 'data') #This is going to have to work for now.  I'm sure it has issues.
                          return(outdf)
         }
 
