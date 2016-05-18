@@ -23,6 +23,14 @@
 #' after they are split/merged.
 #' @param ... Anything else.
 #' @export mixmetrics
+#'
+#'
+# I would like to update this to : a) Be an object that's just a data structure with various bits
+# b) assign a method to coef to extract the lm-fit coefficients to the output data structure
+# c) assign a method to predict to predict the lm-derived counts from the output data structure
+# I guess i'll see if i can make this happen ; it seems totally within scope and not too complex...
+
+
 mixmetrics <-function(mrnatype="internalconsensus",splittype="none",prenormalized=TRUE,modeltype="twomix",indf,retdf=FALSE,idnames="id",idvars=1,trueproportions,componentnames=c("Brain","Liver","Placenta"),mixnames=c("Mix1","Mix2"),annot=c("Replicate"),...){
   normalizedf<-function(indf,idvars){
     indf<-as.data.frame(indf) #in case it's actually read in as a data table.
@@ -105,7 +113,16 @@ mixmetrics <-function(mrnatype="internalconsensus",splittype="none",prenormalize
   mfrac<-getmfrac(indf,preps$mrnatype) #calculate the measured fraction
   preps<-c(preps,list(mfrac=mfrac))#adds the mfrac to the data structure
         #calculation i choose
-  splitmultidf<-function(indf,splittype,splitcolumn,idvars){
+  cellmixmodelsolve<-function(indf,preps){
+    #yeah you're going to lose all of the 0s. It also sucks for BLM.
+    #I can't imagine a different way.
+    # this can run as a 'blind solve N components' or as a 'known signatures for components'
+    # but they both suck.
+    indfb<-indf[rowSums(indf[preps$mixnames])>0,]
+    indfb<-indfb[rowSums(indfb[preps$componentnames])>0,]
+    return(coefficients(ged(object=as.matrix(indfb[preps$mixnames]),x=length(preps$componentnames))))
+  }
+    splitmultidf<-function(indf,splittype,splitcolumn,idvars){
     switch(splittype,
            none=return(indf),
            globalcon = makelabrounda() #i need to split the 'makelabround' into a helper function that splits and a secondary
@@ -121,11 +138,14 @@ mixmetrics <-function(mrnatype="internalconsensus",splittype="none",prenormalize
   getm1<-function(indf,preps){
     switch(preps$modeltype,
            twomix=minmodelsolve(ssx=indf,preps=preps),
-           threemix=magicmodelsolve()
+           threemix=magicmodelsolve(),
+           #would be nice to use cellmix as an option
+           cellmix=cellmixmodelsolve(indf,preps)
 
     )
   }
   m1<-getm1(indf,preps=preps) #use the model to create a matrix of deviation from target
 #calls a model-solving helper function (eg: minmodelsolve)
-return(m1)
+preps<-c(preps,list(results=m1,indf=indf))
+  return(preps)
 }
