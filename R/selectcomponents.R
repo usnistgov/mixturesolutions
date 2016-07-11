@@ -1,2 +1,2 @@
 selectcomponents <-
-function(dataf,preps){which(names(dataf)%in%preps$componentnames)}
+function(dataf,preps){which(names(dataf)%in%as.character(preps$componentnames))}

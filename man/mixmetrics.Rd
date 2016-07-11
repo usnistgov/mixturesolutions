@@ -5,10 +5,9 @@
 \title{Calculate the fraction of mixture components in a mixture dataset.}
 \usage{
 mixmetrics(mrnatype = "internalconsensus", splittype = "none",
-  prenormalized = TRUE, modeltype = "twomix", indf, retdf = FALSE,
-  idnames = "id", idvars = 1, trueproportions, componentnames = c("Brain",
-  "Liver", "Placenta"), mixnames = c("Mix1", "Mix2"),
-  annot = c("Replicate"), ...)
+  prenormalized = TRUE, modeltype = "twomix", indf, idnames = "id",
+  idvars = 1, trueproportions, componentnames = c("Brain", "Liver",
+  "Placenta"), mixnames = c("Mix1", "Mix2"), annot = c("Replicate"), ...)
 }
 \arguments{
 \item{mrnatype}{Internalconsensus,externalagreement,none,or ercc;
