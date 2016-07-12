@@ -9,7 +9,7 @@ Maintainer: Jerod Parsons <jeparson@github.com>
 Depends:
     R (>= 3.1.0)
 Imports: 
-	 reshape2,edgeR,CellMix
+	 reshape2
 Suggests:    
 Description: Modeling and analysis of the proportions of mixture components
     in a mixture design, based on the modeling put forth in http://dx.doi.org/
