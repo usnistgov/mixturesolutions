@@ -1,24 +1,24 @@
 minmodelsolve <-
-function(ssx=indf,preps){
+function(ssx,preps){
   modelproportions<-NULL
   #somewhat awkwardly, this assumes that the data consists only of 1 replicate of each component/mix.
-  #i suppose i could do some pre-summarizing inside here?  Better: use a 'summarize' subroutine,elsewhere (in normalization?) to do that.
+  #use a 'summarize' subroutine,elsewhere (collapsereps) to do that.
 
-  for(idx in 1:length(preps$mixnames)){
+  for(idx in 2:length(as.character(preps$mixnames))){
     #more generalized...
-    form<-paste0(preps$mixnames[idx],"~")
-    for(cindex in (1:(length(preps$componentnames)))){
-       form<-paste0(form,"I(",preps$componentnames[cindex],"*",preps$mfrac[cindex],")+")
-      }
-    form<-paste0(form,0)
+    form<-paste0(as.character(preps$mixnames[idx]),"~")
+    for(cindex in (2:(length(as.character(preps$componentnames))))){
+       form<-paste0(form,"I(",as.character(preps$componentnames[cindex]),"*",preps$mfrac[cindex-1],")+")
+      } #builds the model formula from the componentnames & mRNA fraction data
+    form<-paste0(form,0) #removes the intercept term & closes the formula
 
     modelproportions<-rbind(modelproportions,c(
       coefficients(lm(data=ssx,form))/
         sum(coefficients(lm(data=ssx,form))),
-      preps$mixnames[idx]))
+      as.character(preps$mixnames[idx]))) #solves the model coefficients and normalizes to 1 to make it proportions.
   }
-  colnames(modelproportions)<-c(preps$componentnames,"mix")
-  modelproportions<-as.data.frame(modelproportions) #converts proportions to numeric rather than character.
-  for(I in 1:length(preps$componentnames)){modelproportions[,I]<-as.numeric(as.character(modelproportions[,I]))}
+  colnames(modelproportions)<-c(as.character(preps$componentnames)[2:length(preps$componentnames)],"mix")
+  modelproportions<-as.data.frame(modelproportions)
+  for(I in 1:(length(preps$componentnames)-1)){modelproportions[,I]<-as.numeric(as.character(modelproportions[,I]))}#converts proportions to numeric rather than character.
   return(modelproportions)
 }
