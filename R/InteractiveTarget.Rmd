@@ -1,0 +1,56 @@
+---
+title: "InteractiveTarget"
+author: "jeparson"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(cache = TRUE)#better to not repeat
+```
+This is a demo of an interactive Target plot.  The goal of these target plots is to make a simple evaluation of a complete [mixed-tissue-using] dataset.
+To be "on target", a set of N colored points (representing an entire experiment with 2 mixtures of N components) should have minimal distance from the targeted (partially opaque) points.
+```{r zoomTargetPlot}
+#source the local package...
+require(devtools,quietly = TRUE)
+#devtools::install(pkg = "../mixturesolutions")
+library(mixturesolutions,quietly = TRUE)
+setdi=0.05 #a diameter for the concentric "target" circles.
+#data(BLM)
+#mixdf<-mixturesolutions::mixmetrics(mrnatype = "ercc",prenormalized = TRUE,modeltype = "twomix",indf = BLM,
+#                   trueproportions = data.frame(mix1=c(.25,.25,.5),mix2=c(.25,.5,.25)),componentnames=c("bep","lep","mep"),mixnames=c("a1","a2"))
+#other options from existing mixture datasets:
+data("EDRNmir")
+mixdf=mixmetrics(indf=EDRNmir,mrnatype="internalconsensus",prenormalized=FALSE,modeltype="twomix",componentnames=c("Brain","Liver","Placenta"),
+                   mixnames=c("Mix1","Mix2"),trueproportions = data.frame(mix1=c(.25,.25,.5),mix2=c(.5,.25,.25)))
+
+tdf<-mixdf$targetdf
+#print(tdf)#the object exists and works
+#add some circles because they're fun.
+circleFun<-function(center = c(0,0),diameter = 1, npoints = 100){
+    r = diameter / 2
+    tt <- seq(0,2*pi,length.out = npoints)
+    xx <- center[1] + r * cos(tt)
+    yy <- center[2] + r * sin(tt)
+    return(data.frame(x = xx, y = yy,col="",meta=""))
+}
+cdf<-NULL
+for(I in 1:length(eval(mixdf$componentnames))){
+cdf<-rbind(cdf,circleFun(center=c(tdf$x[I],tdf$y[I]),diameter=setdi))
+cdf<-rbind(cdf,circleFun(center=c(tdf$x[I],tdf$y[I]),diameter=setdi*2))
+}
+opactify<-function(df,parameters=c(0.25,1,0.15)){
+  #sets color opacity for target plots
+  string<-rep(0,length(df))
+  string[df=="expected"]<-parameters[1]
+  string[df=="observed"]<-parameters[2]
+  string[df==""]<-parameters[3]
+  return(string)
+}
+fdf<-rbind(tdf,cdf)
+tail(fdf)
+library(scatterD3)
+scatterD3(x=fdf$x,y=fdf$y,col_var=as.character(fdf$col),colors=c("red","blue","green","grey"),point_opacity=opactify(fdf$meta),fixed=TRUE,
+          col_lab="Component",lab=NULL)
+
+```
+
