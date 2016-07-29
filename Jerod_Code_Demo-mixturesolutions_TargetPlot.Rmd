@@ -1,0 +1,81 @@
+---
+title: "Interactive Target Plot"
+author: "Jerod Parsons"
+output: 
+  html_document:
+    code_folding: hide
+---
+This is a demo of an interactive Target plot.  The goal of these target plots is to make a simple evaluation of a complete mixed-tissue dataset.  To be "on target", a set of N colored points (representing an entire experiment with 2 mixtures of N components) should have minimal distance from the targeted (partially opaque) points.  These values are the component proportions $\rho_i$ of a linear model fit to the equation below:
+
+$$\epsilon_{mix} = \sum_{i=1}^{n} \epsilon_i \times \rho_i \times \phi_i $$
+
+Where $\epsilon_i$ is the expression vector of sample i, $\rho_i$ is an enrichment factor derived from spike-in controls, and $\phi_i$ is the proportion of component i in the mixture. 
+
+This example loads and estimates mixture proportions from a pair of example datasets in my github package, Mixturesolutions.  
+
+```{r prepareTargetPlot,echo=TRUE,results="hide"}
+
+# check for appropriate packages and install if needed:
+cranpackagelist<-c("devtools","plyr","ggplot2","plotly")
+pkg.needed<-cranpackagelist[!cranpackagelist%in%installed.packages()]
+if(length(pkg.needed)) install.packages(pkg.needed)
+# load appropriate packages
+suppressWarnings(require(devtools,quietly = TRUE))
+# load MY package
+require(mixturesolutions,quietly = TRUE)||install_git(url = "http://github.com/usnistgov/mixturesolutions");require(mixturesolutions,quietly=TRUE)
+suppressWarnings(require(plyr,quietly=TRUE))
+suppressWarnings(require(ggplot2,quietly=TRUE))
+suppressWarnings(suppressMessages(require(plotly,quietly=TRUE)))
+#
+
+# set parameters
+setdi<-0.05  # a diameter for the concentric "target" circles.
+#
+
+data(BLM)
+# calculate mixture proportions for dataset1 using mixmetrics function
+mRNA_mixdf<-mixturesolutions::mixmetrics(
+  mrnatype = "ercc",prenormalized = TRUE,modeltype = "twomix",
+  indf = BLM,trueproportions = data.frame(mix1=c(0.25,0.25,0.5),mix2=c(0.25,0.5,0.25)),
+  componentnames=c("bep","lep","mep"),mixnames=c("a1","a2")
+  )
+mRNA_mixdf$targetdf$col<-plyr::revalue(mRNA_mixdf$targetdf$col,c("bep"="Brain","lep"="Liver","mep"="Muscle")) # re-label the levels to make them more comparable between experiments.
+data("EDRNmir")
+# calculate mixture proportions for dataset2 using mixmetrics function
+miRNA_mixdf<-mixturesolutions::mixmetrics(
+  indf=EDRNmir,mrnatype="internalconsensus",prenormalized=FALSE,
+  modeltype="twomix",componentnames=c("Brain","Liver","Placenta"),
+  mixnames=c("Mix1","Mix2"),
+  trueproportions = data.frame(mix1=c(0.25,0.25,0.5),mix2=c(0.5,0.25,0.25))
+  )
+
+```
+I then build a ggplot object from the calculated proportions.  I also make concentric circles to generate the 
+'target' of the target plot.  
+```{R,results="hide"}
+tdf <- data.frame(rbind(cbind(miRNA_mixdf$targetdf,source="miRNA"),cbind(mRNA_mixdf$targetdf,source="mRNA")))
+ncirc <- 3
+theta <- seq(from=0,by=.01,to=2*pi)
+circleFun<-function(n,xx,yy,setdi,ncirc,tiss,src){
+    r <- n*setdi/ncirc
+  x<-data.frame(x=xx+r*sin(theta),y=yy+r*cos(theta),r=paste(tiss,src,round(r,2)))
+} # builds circles
+csf <- rbind(subset(tdf,meta=="expected"))
+cdf <- do.call(rbind,
+  mapply(n=rep(seq(1,ncirc),each=length(csf$x)),xx=csf$x,yy=csf$y,tiss=csf$col,src=csf$source,FUN=circleFun,MoreArgs=list(setdi,ncirc),SIMPLIFY=FALSE))
+  require(grid,quietly = TRUE)
+ vis1<-ggplot()+
+    geom_point(data=tdf,aes(x=x,y=y,col=col,alpha=meta)) + facet_wrap(~source ,scales="free") +
+    geom_path(data=cdf,alpha=.2,aes(group=factor(r),x=x,y=y)) +
+    coord_fixed(ratio = 1) + theme_set(theme_bw(base_size=21)) + 
+    scale_colour_manual(values=c("#6699FF","#99CC99","#800080","#CC6666"),name="") + theme(aspect.ratio=1) +
+    xlab("Proportion in Mix 1")+ylab("Proportion in Mix 2") +
+    theme(strip.background=element_rect(fill="white")) + scale_alpha_manual(values=c(0.5,1),name="")
+```
+Finally, I render the plot using GGplotly.  
+```{R maketargetplot,echo=TRUE}
+
+plotly::ggplotly(vis1)
+
+```
+Some of the points for the miRNA dataset are overlapping if you don't zoom, which you can do thanks to the great work out of the plotly folks.  Tooltips unfortunately show for the background circle layers.
